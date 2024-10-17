@@ -1,0 +1,68 @@
+- name: Configurar Git, clonar repositorio, generar build de React y crear imagen Docker
+  hosts: localhost
+  become: yes
+  tasks:
+    - name: Instalar git
+      apt:
+        name: git
+        state: present
+        update_cache: yes
+    
+    - name: Clonar el repositorio privado con un token clasico de acceso personal de 
+      git:
+        repo: 'aca deben colocar el link del repositorio asi como se indico en el laboratorio con el token clasico'
+        dest: /home/desistemasanalisis/frontend_docker
+        version: "main"
+        force: yes
+
+    - name: instalar curl
+      apt:
+        name: curl
+        state: present
+        update_cache: yes
+
+    - name: Descargar script de NodeSource para nodejs 20.x
+      command: curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh
+
+    - name: Ejecutar script de NodeSource
+      command: bash /tmp/nodesource_setup.sh
+    
+    - name: Instalar Nodejs y npm 
+      apt:
+        name: nodejs
+        state: present
+    
+    - name: Actualizar npm a la version mas reciente 10.8.2
+      command: npm install -g npm@10.8.2
+    
+    - name: Limpiar dependencias anteriores (node_modules y package-lock.json)
+      command: rm -rf node_modules package-lock.json
+      args:
+        chdir: /home/desistemasanalisis/frontend_docker
+
+    - name: Instalar dependencias del proyecto
+      command: npm install
+      args:
+        chdir: /home/desistemasanalisis/frontend_docker
+
+    - name: Generar build de la aplicación React
+      command: npm run build
+      args:
+        chdir: /home/desistemasanalisis/frontend_docker
+
+    - name: Agregar usuario al grupo Docker para evitar usar sudo
+      user:
+        name: desistemasanalisis
+        groups: docker
+        append: yes
+
+    - name: Construir la imagen Docker desde el Dockerfile
+      command: docker build -t my-react-app .
+      args:
+        chdir: /home/desistemasanalisis/frontend_docker
+
+    - name: Ejecutar el contenedor de la imagen Docker
+      command: docker run -d -p 3000:3000 --name my-react-app-container my-react-app
+
+    - name: Verificar que el contenedor esté corriendo
+      command: docker ps
