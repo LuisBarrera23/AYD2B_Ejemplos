@@ -1,0 +1,49 @@
+# -----------------DEFINICIÓN DE STAGES--------------------
+stages:
+  - build
+  - test
+  - post-build
+  - delivery
+  - deploy
+
+
+build:example:
+  stage: build
+  script:
+    - echo "---------------INICIO DE COMPILACIÓN DE CAPA MEDIA--------------------"
+    - echo "---------------INTERMEDIO DE LA COMPILACIÓN---------------------------"
+    - echo "---------------FINAL DE COMPILACIÓN DE CAPA MEDIA--------------------"
+    - echo "---------------FINAL DE COMPILACIÓN DE CAPA MEDIAX2--------------------"
+  tags:
+    - develop
+  only:
+    refs:
+      - /^feature-.+$/
+
+
+test:example:
+  stage: test
+  needs: ["build:example"]
+  script:
+    - echo "---------------INICIO DE TEST--------------------"
+    - echo "---------------FINAL DE TEST--------------------"
+  tags:
+    - develop
+  only:
+    refs:
+      - /^feature-.+$/
+      - develop
+
+
+# Realiza el deploy de los servicios en kubernetes en el namespace de testk8s en el cluster de GCP
+deploy:deploy_app:
+  stage: deploy
+  script:
+    - echo "---------------INICIO DE DEPLOY--------------------"
+    - echo "---------------FINAL DE DEPLOY--------------------"
+  only:
+    refs:
+      - main
+  tags:
+    - develop
+  

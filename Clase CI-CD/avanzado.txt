@@ -1,0 +1,79 @@
+# -----------------DEFINICIÓN DE STAGES--------------------
+stages:
+  - build
+  - test
+  - post-build
+  - delivery
+  - deploy
+
+
+build:example:
+  stage: build
+  script:
+    - echo "---------------INICIO DE COMPILACIÓN DE CAPA MEDIA--------------------"
+    # - echo "Usuario Docker $DOCKER_USER"
+    # - echo "Contraseña Docker $DOCKER_PASSWORD"
+
+    # Verifica si hay contenedores en ejecución antes de detenerlos
+    - if [ "$(docker ps -q)" ]; then docker stop $(docker ps -aq); fi
+    # Elimina todos los contenedores y volúmenes no utilizados para liberar espacio
+    - docker system prune -a -f
+    # Inicia sesión en DockerHub de forma segura
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+    # Construye la imagen
+    - docker build -t "$DOCKER_USER/backendayd" ./backend
+    # Publica la imagen en DockerHub
+    - docker push "$DOCKER_USER/backendayd"
+  tags:
+    - develop
+  only:
+    refs:
+      - /^feature-.+$/
+      - develop
+
+
+
+test:example:
+  stage: test
+  needs: ["build:example"]
+  script:
+    - echo "---------------INICIO DE TEST--------------------"
+    # Descarga y configura el repositorio de NodeSource para Node.js 20.x
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    # Ahora instala Node.js desde el repositorio de NodeSource
+    - sudo apt-get install -y nodejs
+    - node -v  # Verifica que se haya instalado la versión 20.x
+    - cd ./backend
+    - npm install
+    - npx jest
+    - echo "---------------FINAL DE TEST--------------------"
+  tags:
+    - develop
+  only:
+    refs:
+      - /^feature-.+$/
+      - develop
+
+
+
+
+deploy:deploy_app:
+  stage: deploy
+  script:
+    - echo "---------------INICIO DE DEPLOY--------------------"
+    # Inicia sesión en DockerHub
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+    # Descarga la imagen desde DockerHub
+    - docker pull "$DOCKER_USER/backendayd:latest"
+    # Detiene cualquier contenedor existente que esté utilizando el mismo nombre
+    - if [ "$(docker ps -q -f name=backendayd)" ]; then docker stop backendayd; docker rm backendayd; fi
+    # Ejecuta el contenedor basado en la imagen descargada
+    - docker run -d --name backendayd -p 3000:3000 "$DOCKER_USER/backendayd:latest"
+    - echo "---------------FINAL DE DEPLOY--------------------"
+  tags:
+    - develop
+  only:
+    refs:
+      - main
+
+
